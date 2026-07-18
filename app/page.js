@@ -73,7 +73,7 @@ export default function Home() {
             <div className="relative h-[500px] lg:h-[700px] w-full rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white/50">
               {/* Fallback image if next/image unconfigured */}
               <Image 
-                src="https://images.unsplash.com/photo-1531123897727-8f129e1bfd8c?q=80&w=1974&auto=format&fit=crop" 
+                src="https://ssenabcdorpjmrdbvnym.supabase.co/storage/v1/object/public/images/06_collage_tresses.jpg" 
                 alt="Empire Nita Beauty"
                 fill
                 priority
