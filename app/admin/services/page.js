@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAdmin } from "@/context/AdminContext";
+import { supabasePublic } from "@/lib/supabaseClient";
 import {
   Scissors,
   Plus,
@@ -32,6 +33,8 @@ export default function AdminServicesPage() {
     duration_minutes: 60,
     image_url: "",
   });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
@@ -91,6 +94,22 @@ export default function AdminServicesPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setFormError("Image trop lourde, choisissez une photo de moins de 5 Mo.");
+        e.target.value = "";
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        return;
+      }
+      setFormError(null);
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleEditClick = (service) => {
     setFormData({
       id: service.id,
@@ -101,6 +120,8 @@ export default function AdminServicesPage() {
       duration_minutes: service.duration_minutes,
       image_url: service.image_url || "",
     });
+    setSelectedFile(null);
+    setPreviewUrl(service.image_url || null);
     setFormError(null);
   };
 
@@ -114,6 +135,8 @@ export default function AdminServicesPage() {
       duration_minutes: 60,
       image_url: "",
     });
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setFormError(null);
   };
 
@@ -131,6 +154,28 @@ export default function AdminServicesPage() {
     }
 
     try {
+      let finalImageUrl = image_url;
+
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabasePublic.storage
+          .from("images")
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          throw new Error(`Erreur d'upload : ${uploadError.message}`);
+        }
+
+        const { data: publicUrlData } = supabasePublic.storage
+          .from("images")
+          .getPublicUrl(filePath);
+
+        finalImageUrl = publicUrlData.publicUrl;
+      }
+
       const method = id ? "PATCH" : "POST";
       const url = id ? `/api/services/${id}` : "/api/services";
 
@@ -146,7 +191,7 @@ export default function AdminServicesPage() {
           description: description || null,
           price: parseFloat(price),
           duration_minutes: parseInt(duration_minutes),
-          image_url: image_url || null,
+          image_url: finalImageUrl || null,
         })
       });
 
@@ -396,17 +441,23 @@ export default function AdminServicesPage() {
               />
             </div>
 
-            {/* Image URL input */}
+            {/* Image upload */}
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-600">URL de l'image (Optionnel)</label>
-              <input
-                type="url"
-                name="image_url"
-                value={formData.image_url}
-                onChange={handleFormChange}
-                placeholder="Ex: https://image.com/tresses.jpg"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
-              />
+              <label className="font-semibold text-slate-600">Image du service (Optionnel)</label>
+              <div className="flex items-center space-x-4">
+                {previewUrl && (
+                  <div className="relative w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-slate-200">
+                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-beauty-rose/10 file:text-beauty-rose hover:file:bg-beauty-rose/20 transition-all"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400">Max: 5 Mo. Formats: JPG, PNG, WEBP.</p>
             </div>
 
             {/* Description textarea */}

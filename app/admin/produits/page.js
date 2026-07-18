@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAdmin } from "@/context/AdminContext";
+import { supabasePublic } from "@/lib/supabaseClient";
 import {
   Sparkles,
   Plus,
@@ -34,6 +35,8 @@ export default function AdminProductsPage() {
     stock: 0,
     image_url: "",
   });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
@@ -69,6 +72,22 @@ export default function AdminProductsPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setFormError("Image trop lourde, choisissez une photo de moins de 5 Mo.");
+        e.target.value = "";
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        return;
+      }
+      setFormError(null);
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleEditClick = (product) => {
     setFormData({
       id: product.id,
@@ -81,6 +100,8 @@ export default function AdminProductsPage() {
       stock: product.stock,
       image_url: product.image_url || "",
     });
+    setSelectedFile(null);
+    setPreviewUrl(product.image_url || null);
     setFormError(null);
   };
 
@@ -96,6 +117,8 @@ export default function AdminProductsPage() {
       stock: 0,
       image_url: "",
     });
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setFormError(null);
   };
 
@@ -113,6 +136,28 @@ export default function AdminProductsPage() {
     }
 
     try {
+      let finalImageUrl = image_url;
+
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabasePublic.storage
+          .from("images")
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          throw new Error(`Erreur d'upload : ${uploadError.message}`);
+        }
+
+        const { data: publicUrlData } = supabasePublic.storage
+          .from("images")
+          .getPublicUrl(filePath);
+
+        finalImageUrl = publicUrlData.publicUrl;
+      }
+
       const method = id ? "PATCH" : "POST";
       const url = id ? `/api/products/${id}` : "/api/products";
 
@@ -130,7 +175,7 @@ export default function AdminProductsPage() {
           price: parseFloat(price),
           promo_price: promo_price ? parseFloat(promo_price) : null,
           stock: parseInt(stock),
-          image_url: image_url || null,
+          image_url: finalImageUrl || null,
         })
       });
 
@@ -410,17 +455,23 @@ export default function AdminProductsPage() {
               />
             </div>
 
-            {/* Image URL input */}
+            {/* Image upload */}
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-600">URL de l'image (Optionnel)</label>
-              <input
-                type="url"
-                name="image_url"
-                value={formData.image_url}
-                onChange={handleFormChange}
-                placeholder="Ex: https://image.com/savon.jpg"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
-              />
+              <label className="font-semibold text-slate-600">Image du produit (Optionnel)</label>
+              <div className="flex items-center space-x-4">
+                {previewUrl && (
+                  <div className="relative w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-slate-200">
+                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-cosmetics-copper/10 file:text-cosmetics-copper hover:file:bg-cosmetics-copper/20 transition-all"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400">Max: 5 Mo. Formats: JPG, PNG, WEBP.</p>
             </div>
 
             {/* Ingredients input */}
