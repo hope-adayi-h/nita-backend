@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Sparkles, ArrowRight, MapPin, Phone, Mail, Clock } from "lucide-react";
 import Image from "next/image";
@@ -17,12 +17,20 @@ export default function Home() {
     setFormMessage("");
   };
 
-  const collections = [
-    { title: "Savon Or", desc: "Savon aromatique de beauté, antibactérien aux herbes, professionnel efficace.", img: "https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?q=80&w=2070&auto=format&fit=crop" },
-    { title: "Savon Or (Variante)", desc: "Pour une peau lumineuse et éclatante, sans imperfections ni taches.", img: "https://images.unsplash.com/photo-1608248593842-8021c6a152d2?q=80&w=2070&auto=format&fit=crop" },
-    { title: "Cosmetics", desc: "Soins ciblés visage et corps aux principes actifs naturels et fiables.", img: "https://images.unsplash.com/photo-1629198688000-71f23e745b6e?q=80&w=1780&auto=format&fit=crop" },
-    { title: "Candivies", desc: "Lotion et sérum lissants pour une peau nourrie, douce et parfaitement hydratée.", img: "https://images.unsplash.com/photo-1599305090598-fe179d501227?q=80&w=1974&auto=format&fit=crop" }
-  ];
+  const [collections, setCollections] = useState([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        const products = data.products || [];
+        // Prend les 4 premiers produits actifs (les plus récents en premier)
+        setCollections(products.slice(0, 4));
+      })
+      .catch(() => setCollections([]))
+      .finally(() => setCollectionsLoading(false));
+  }, []);
 
   const ateliers = [
     { title: "Atelier Formulation", desc: "Maîtriser les émulsions et formules.", img: "https://images.unsplash.com/photo-1596755389378-c11dde01c0bb?q=80&w=2070&auto=format&fit=crop" },
@@ -108,30 +116,44 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Nos Collections de Soins Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-serif font-bold text-slate-900 mb-4">Nos Collections de Soins</h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-beauty-rose to-cosmetics-copper mx-auto rounded-full"></div>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {collections.map((item, idx) => (
-              <div key={idx} className="bg-white/70 backdrop-blur-md rounded-3xl p-4 border border-rose-100 shadow-sm hover:shadow-xl transition-all duration-300 group">
-                <div className="relative h-48 w-full rounded-2xl overflow-hidden mb-4">
-                  <Image src={item.img} alt={item.title} fill sizes="(max-width: 768px) 100vw, 25vw" className="object-cover group-hover:scale-110 transition-transform duration-500" />
+      {/* Nos Collections de Soins Section — dynamique depuis /api/products */}
+      {!collectionsLoading && collections.length > 0 && (
+        <section className="py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-serif font-bold text-slate-900 mb-4">Nos Collections de Soins</h2>
+              <div className="w-24 h-1 bg-gradient-to-r from-beauty-rose to-cosmetics-copper mx-auto rounded-full"></div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {collections.map((item) => (
+                <div key={item.id} className="bg-white/70 backdrop-blur-md rounded-3xl p-4 border border-rose-100 shadow-sm hover:shadow-xl transition-all duration-300 group">
+                  <div className="relative h-48 w-full rounded-2xl overflow-hidden mb-4 bg-rose-50">
+                    {item.image_url ? (
+                      <Image
+                        src={item.image_url}
+                        alt={item.name}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 25vw"
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-rose-200">
+                        <Sparkles size={32} />
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="font-serif font-bold text-lg text-slate-900 mb-2">{item.name}</h3>
+                  <p className="text-xs text-slate-600 mb-4 line-clamp-3">{item.description || "Produit de soin naturel Nita Cosmétics."}</p>
+                  <Link href="/boutique" className="text-beauty-rose-dark text-sm font-semibold inline-flex items-center group-hover:text-beauty-rose">
+                    Voir le produit <ArrowRight size={14} className="ml-1" />
+                  </Link>
                 </div>
-                <h3 className="font-serif font-bold text-lg text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-xs text-slate-600 mb-4 line-clamp-3">{item.desc}</p>
-                <Link href="/boutique" className="text-beauty-rose-dark text-sm font-semibold inline-flex items-center group-hover:text-beauty-rose">
-                  Produit page <ArrowRight size={14} className="ml-1" />
-                </Link>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Nos Ateliers de Formation Section */}
       <section className="py-20">
