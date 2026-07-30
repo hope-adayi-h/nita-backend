@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAdmin } from "@/context/AdminContext";
 import { supabasePublic } from "@/lib/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
 import {
   Sparkles,
   Plus,
@@ -143,7 +144,20 @@ export default function AdminProductsPage() {
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `${fileName}`;
 
-        const { error: uploadError } = await supabasePublic.storage
+        // Create an authenticated client to pass RLS policies
+        const supabaseAuth = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          }
+        );
+
+        const { error: uploadError } = await supabaseAuth.storage
           .from("images")
           .upload(filePath, selectedFile);
 
